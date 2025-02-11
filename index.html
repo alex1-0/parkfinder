@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ParkFinder</title>
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #textbox {
+      position: absolute;
+      top: 1%;
+      left: 86%;
+      width: 12%;
+      height: 4%;
+      z-index: 999;
+      padding: 5px;
+      background: white;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    #results {
+      position: absolute;
+      top: 6%;
+      left: 86%;
+      width: 12%;
+      max-height: 50%;
+      z-index: 999;
+      background: white;
+      border: 1px solid #ccc;
+      overflow-y: auto;
+    }
+    .result-item {
+      padding: 5px;
+      cursor: pointer;
+    }
+    .result-item:hover {
+      background-color: #f0f0f0;
+    }
+    #dialog {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 35%; /* Erhöhen Sie die Breite */
+  height: 100%;
+  background-color: white;
+  border-right: 1px solid #ccc;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  z-index: 1000;
+  display: none;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+ 
+/* Für Mobilgeräte */
+@media (max-width: 767px) {
+  #dialog {
+    width: 80%; /* Erhöhen Sie die Breite für mobile Geräte */
+  }
+}
+ 
+    
+    /* Für Mobilgeräte */
+    @media (max-width: 767px) {
+      #textbox, #results {
+        width: 40%;
+        left: 59%;
+      }
+      #dialog {
+        width: 50%;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+  <script src="https://nominatim.openstreetmap.org/ui/dist/nominatim-ui.js"></script>
+</head>
+<body>
+  <div id="map"></div>
+  <input type="text" id="textbox" placeholder="Nach einem Ort suchen...">
+  <div id="results"></div>
+  <div id="dialog"></div>
+  <script>
+    var map = L.map('map');
+    var markers = L.layerGroup().addTo(map);
+    var dialog = document.getElementById('dialog');
+ 
+    navigator.geolocation.getCurrentPosition(function(position) {
+      var lat = position.coords.latitude;
+      var lon = position.coords.longitude;
+      map.setView([lat, lon], 13);
+      showPOIs();
+    }, function() {
+      map.fitWorld();
+      showPOIs();
+    });
+ 
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 22
+    }).addTo(map);
+ 
+    var searchInput = document.getElementById('textbox');
+    var resultsDiv = document.getElementById('results');
+ 
+    function formatAddress(result) {
+      let parts = result.display_name.split(', ');
+      let formattedAddress = '';
+      
+      if (parts[0] !== parts[1] && !parts[0].match(/^\d/)) {
+        formattedAddress += parts[0] + ', ';
+      }
+      
+      formattedAddress += parts[1] || parts[0];
+      
+      return formattedAddress;
+    }
+ 
+    searchInput.addEventListener('keyup', function(event) {
+      if (event.keyCode === 13) {
+        var query = searchInput.value;
+        var limit = 100;
+        var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&limit=' + limit;
+        fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            resultsDiv.innerHTML = '';
+            if (data.length > 0) {
+              data.slice(0, limit).forEach(result => {
+                var div = document.createElement('div');
+                div.className = 'result-item';
+                div.textContent = formatAddress(result);
+                div.addEventListener('click', function() {
+                  map.setView([result.lat, result.lon]);
+                });
+                resultsDiv.appendChild(div);
+              });
+            } else {
+              resultsDiv.innerHTML = '<div class="result-item">Keine Ergebnisse gefunden</div>';
+            }
+          })
+          .catch(error => console.error(error));
+      }
+    });
+ 
+    function showPOIs() {
+      var bounds = map.getBounds();
+      var query = `
+        [out:json][timeout:25];
+        (
+          node["highway"="rest_area"](${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()});
+          way["highway"="rest_area"](${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()});
+        );
+        out center;
+      `;
+ 
+      fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query
+      })
+      .then(response => response.json())
+      .then(data => {
+        markers.clearLayers();
+        data.elements.forEach(element => {
+          var lat = element.lat || element.center.lat;
+          var lon = element.lon || element.center.lon;
+          var marker = L.marker([lat, lon]).addTo(markers);
+          var popupContent = element.tags.name || (element.tags.highway === "rest_area" ? "Raststätte" : "Tankstelle");
+          marker.bindPopup(popupContent);
+          marker.on('click', function() {
+            openDialog(popupContent, element);
+          });
+        });
+      })
+      .catch(error => console.error('Error:', error));
+    }
+    function openDialog(name, element) {
+  let videoUrl = "https://webcams2.asfinag.at/webcamviewer/SingleScreenServlet/?user=webcamstartseite&wcsid=A001_300,945_Q_00082368&ssid=fb3e09d7-92c6-4392-b7d0-8e89f2d44729&token=IyMjIzUwOSM0MTUjYXRERSNpbmZvI2ZhbHNlI05vdFVzZWQjMzY2NDA4NzU3Nw";
+  
+  if (name === "Rastplatz Hainbach Nord") {
+    videoUrl = "https://webcams2.asfinag.at/webcamviewer/SingleScreenServlet/?user=webcamstartseite&wcsid=A001_230,735_Q_00094460&ssid=5433820f-6fab-44cf-ac3e-b84d8bf0f853&token=IyMjIzUwOSM0MTUjYXRERSNpbmZvI2ZhbHNlI05vdFVzZWQjMzY2NDA4NzU3Nw";
+  }
+  if (name === "Rastplatz Hainbach Süd") {
+    videoUrl = "https://webcams2.asfinag.at/webcamviewer/SingleScreenServlet/?user=webcamstartseite&wcsid=A001_230,000_Q_00094484&ssid=4f316e92-839d-488a-8eb8-dcc9f48790ec&token=IyMjIzUwOSM0MTUjYXRERSNpbmZvI2ZhbHNlI05vdFVzZWQjMzY2NDA4NzU3Nw"
+  }
+  if (name === "Rastplatz Kesselhof") {
+    videoUrl = "https://webcams2.asfinag.at/webcamviewer/SingleScreenServlet/?user=webcamstartseite&wcsid=A001_044,678_Q_00094327&ssid=2d565e95-150b-41aa-8bdd-14ffff79cbe0&token=IyMjIzUwOSM0MTUjYXRERSNpbmZvI2ZhbHNlI05vdFVzZWQjMzY2NDA4NzU3Nw"
+  }
+  if (name === "Rastplatz Kirchstetten") {
+    videoUrl = "https://webcams2.asfinag.at/webcamviewer/SingleScreenServlet/?user=webcamstartseite&wcsid=A001_044,773_Q_00094305&ssid=6b7e5eb2-a9a1-4ff9-a6d7-3e47cc003845&token=IyMjIzUwOSM0MTUjYXRERSNpbmZvI2ZhbHNlI05vdFVzZWQjMzY2NDA4NzU3Nw"
+  }
+  if (name === "Wildenhag Nord") {
+    videoUrl = "https://webcams2.asfinag.at/webcamviewer/SingleScreenServlet/?user=webcamstartseite&wcsid=A001_243,700_0_00014849&ssid=81f47835-0206-465a-873b-d67f5e222d95&token=IyMjIzUwOSM0MTUjYXRERSNpbmZvI2ZhbHNlI05vdFVzZWQjMzY2NDA4NzU3Nw"
+  }
+ 
+  let dialogContent = `
+    <h2>${name}</h2>
+    <div id="videoContainer" style="width: 100%; height: 0; padding-bottom: 70%; position: relative; margin-bottom: 20px; overflow: hidden;">
+      <iframe id="webcamVideo" src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 142.85%; border: none;"></iframe>
+    </div>
+  `;
+ 
+  if (element.tags) {
+    dialogContent += '<div id="infoContainer" style="overflow-y: auto; max-height: 50%;">';
+    for (let key in element.tags) {
+      let translatedKey = translateKey(key);
+      let translatedValue = translateValue(key, element.tags[key]);
+      dialogContent += `<p><strong>${translatedKey}:</strong> ${translatedValue}</p>`;
+    }
+    dialogContent += '</div>';
+  }
+  
+  dialog.innerHTML = dialogContent;
+  dialog.style.display = 'block';
+ 
+  // Event-Listener zum Schließen des Dialogs
+  dialog.addEventListener('click', function(event) {
+    if (event.target === dialog) {
+      dialog.style.display = 'none';
+    }
+  }, { once: true });
+}
+ 
+ 
+ 
+function translateKey(key) {
+  const translations = {
+    'name': 'Name',
+    'highway': 'Straßentyp',
+    'amenity': 'Einrichtung',
+    'operator': 'Betreiber',
+    'brand': 'Marke',
+    'opening_hours': 'Öffnungszeiten',
+    'phone': 'Telefon',
+    'website': 'Webseite',
+    'toilets': 'Toiletten',
+    'wheelchair': 'Rollstuhlzugang',
+    'parking': 'Parkplatz',
+    'fuel': 'Kraftstoff',
+    'shop': 'Geschäft',
+    'restaurant': 'Restaurant',
+    'cafe': 'Café',
+    'capacity:hgv': 'Parkplätze'
+  };
+  return translations[key] || key;
+}
+ 
+function translateValue(key, value) {
+  if (key === 'highway' && value === 'rest_area') {
+    return 'Raststätte';
+  }
+  if (key === 'amenity' && value === 'fuel') {
+    return 'Tankstelle';
+  }
+  if (key === 'toilets' || key === 'wheelchair' || key === 'parking') {
+    return value === 'yes' ? 'Ja' : 'Nein';
+  }
+  return value;
+}
+ 
+    map.on('moveend', showPOIs);
+  </script>
+</body>
+</html>
