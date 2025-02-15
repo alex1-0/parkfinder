@@ -246,7 +246,9 @@
         'atmotorway': 'Angrenzend an Autobahn',
         'drinking_water': 'Trinkwasser',
         'shower': 'Dusche',
-        'source': 'Quelle'
+        'source': 'Quelle',
+        'backrest': 'Rückenlehne',
+        'material': 'Material'
       };
       return translations[key] || key;
     }
@@ -258,12 +260,18 @@
       if (key === 'amenity' && value === 'fuel') {
         return 'Tankstelle';
       }
-      if (key === 'toilets' || key === 'wheelchair' || key === 'parking' || key === 'atmotorway' || key === 'shower' || key === 'drinking_water') {
+      if (key === 'amenity' && value === 'bench') {
+        return 'Bank'
+      }
+      if (key === 'toilets' || key === 'wheelchair' || key === 'parking' || key === 'atmotorway' || key === 'shower' || key === 'drinking_water' || key === 'backrest') {
         return value === 'yes' ? 'Ja' : 'Nein';
+      }
+      if (key === 'material' && value == 'wood') {
+        return 'Holz'
       }
       return value;
     }
-
+    
     map.on('moveend', showPOIs);
   </script>
 </body>
