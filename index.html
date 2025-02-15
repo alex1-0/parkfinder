@@ -242,7 +242,11 @@
         'shop': 'Geschäft',
         'restaurant': 'Restaurant',
         'cafe': 'Café',
-        'capacity:hgv': 'Parkplätze'
+        'capacity:hgv': 'Parkplätze',
+        'atmotorway': 'Angrenzend an Autobahn',
+        'drinking_water': 'Trinkwasser',
+        'shower': 'Dusche',
+        'source': 'Quelle'
       };
       return translations[key] || key;
     }
@@ -254,7 +258,7 @@
       if (key === 'amenity' && value === 'fuel') {
         return 'Tankstelle';
       }
-      if (key === 'toilets' || key === 'wheelchair' || key === 'parking') {
+      if (key === 'toilets' || key === 'wheelchair' || key === 'parking' || key === 'atmotorway' || key === 'shower' || key === 'drinking_water') {
         return value === 'yes' ? 'Ja' : 'Nein';
       }
       return value;
