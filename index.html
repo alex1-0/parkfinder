@@ -204,23 +204,28 @@
       updateOccupiedSpots();
     }
 
-    async function updateOccupiedSpots() {
-      try {
-        const response = await fetch("https://hzpfdchocoftrgxhqjyl.supabase.co/rest/v1/parking_status", {
-            headers: { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6cGZkY2hvY29mdHJneGhxanlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzNjUzMTYsImV4cCI6MjA1NDk0MTMxNn0.RXTeBNXTeBfjMhJ7TuddZkguAV7Yj-HS29GmNYB6n5Y" }
-        });
-        const data = await response.json();
-        let locationData = data.find(d => d.location === currentLocationName);
-        if (locationData) {
-            document.getElementById('occupiedSpots').textContent = locationData.occupied_spots;
-        } else {
-            document.getElementById('occupiedSpots').textContent = "Unbekannt";
-        }
-      } catch (error) {
-        console.error("Fehler beim Abrufen der Parkplatzdaten:", error);
-        document.getElementById('occupiedSpots').textContent = "Fehler beim Laden";
-      }
+async function updateOccupiedSpots() {
+  // Überprüfe, ob der Dialog geöffnet ist
+  if (!document.getElementById('dialog').style.display === 'block') {
+    return; // Beende die Funktion, wenn der Dialog nicht geöffnet ist
+  }
+
+  try {
+    const response = await fetch("https://hzpfdchocoftrgxhqjyl.supabase.co/rest/v1/parking_status", {
+        headers: { "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6cGZkY2hvY29mdHJneGhxanlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzNjUzMTYsImV4cCI6MjA1NDk0MTMxNn0.RXTeBNXTeBfjMhJ7TuddZkguAV7Yj-HS29GmNYB6n5Y" }
+    });
+    const data = await response.json();
+    let locationData = data.find(d => d.location === currentLocationName);
+    if (locationData) {
+        document.getElementById('occupiedSpots').textContent = locationData.occupied_spots;
+    } else {
+        document.getElementById('occupiedSpots').textContent = "Unbekannt";
     }
+  } catch (error) {
+    console.error("Fehler beim Abrufen der Parkplatzdaten:", error);
+    document.getElementById('occupiedSpots').textContent = "Fehler beim Laden";
+  }
+}
 
     // Echtzeit-Aktualisierung alle 5 Sekunden
     setInterval(updateOccupiedSpots, 500);
