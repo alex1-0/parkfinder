@@ -205,9 +205,12 @@
     }
 
 async function updateOccupiedSpots() {
-  // Überprüfe, ob der Dialog geöffnet ist
-  if (!document.getElementById('dialog').style.display === 'block') {
-    return; // Beende die Funktion, wenn der Dialog nicht geöffnet ist
+  // Überprüfe, ob der Dialog geöffnet ist und das Element existiert
+  let dialog = document.getElementById('dialog');
+  let occupiedSpotsElement = document.getElementById('occupiedSpots');
+  
+  if (!dialog || dialog.style.display !== 'block' || !occupiedSpotsElement) {
+    return; // Beende die Funktion, wenn der Dialog nicht geöffnet ist oder das Element nicht existiert
   }
 
   try {
@@ -217,13 +220,13 @@ async function updateOccupiedSpots() {
     const data = await response.json();
     let locationData = data.find(d => d.location === currentLocationName);
     if (locationData) {
-        document.getElementById('occupiedSpots').textContent = locationData.occupied_spots;
+        occupiedSpotsElement.textContent = locationData.occupied_spots;
     } else {
-        document.getElementById('occupiedSpots').textContent = "Unbekannt";
+        occupiedSpotsElement.textContent = "Unbekannt";
     }
   } catch (error) {
     console.error("Fehler beim Abrufen der Parkplatzdaten:", error);
-    document.getElementById('occupiedSpots').textContent = "Fehler beim Laden";
+    occupiedSpotsElement.textContent = "Fehler beim Laden";
   }
 }
 
